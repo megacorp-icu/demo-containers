@@ -1,0 +1,12 @@
+version: '3'
+services:
+  onlyoffice-document-server:
+    image: onlyoffice/documentserver:latest
+    restart: always
+    environment:
+      - JWT_ENABLED=false
+    volumes:
+      - document_data:/var/www/onlyoffice/Data
+      - document_log:/var/log/onlyoffice
+    ports:
+      - 127.0.0.1:8002:80

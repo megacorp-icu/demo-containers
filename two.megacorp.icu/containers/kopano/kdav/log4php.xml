@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns="http://logging.apache.org/log4php/">
+    <appender name="default" class="LoggerAppenderRollingFile">
+	<layout class="LoggerLayoutPattern">
+	    <param name="conversionPattern" value="%date{d.m.Y H:i:s} [%5pid] [%-5level] %4logger %msg%n" />
+	</layout>
+	<param name="file" value="/var/lib/kopano/kdav/kdav.log" />
+	<param name="append" value="true" />
+	<param name="maxFileSize" value="5MB" />
+	<param name="maxBackupIndex" value="5" />
+    </appender>
+    <root>
+	<appender_ref ref="default" />
+	
+	<!-- Possible values from least to most granular:
+	     FATAL, ERROR, WARN, INFO, DEBUG, TRACE -->
+	<level value="INFO" />
+    </root>
+</configuration>

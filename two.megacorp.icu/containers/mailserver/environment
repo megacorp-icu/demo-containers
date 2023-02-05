@@ -1,0 +1,55 @@
+# Global configuration
+MAIL_MESSAGE_SIZE_LIMIT=52428800
+MAIL_HOSTNAME=smtp.megacorp.icu
+
+# Postfix postscreen settings
+POSTFIX_MAIN_mynetworks=127.0.0.0/8, 10.0.0.0/8, [::1], 192.168.99.0/24, 10.10.10.0/24
+POSTFIX_MAIN_postscreen_dnsbl_threshold=3
+POSTFIX_MAIN_postscreen_dnsbl_action=enforce
+POSTFIX_MAIN_postscreen_dnsbl_sites=zen.spamhaus.org*3, b.barracudacentral.org=127.0.0.[2..11]*2, bl.spameatingmonkey.net*2, bl.spamcop.net, dnsbl.sorbs.net, swl.spamhaus.org*-4, list.dnswl.org=127.[0..255].[0..255].0*-2, list.dnswl.org=127.[0..255].[0..255].1*-4, list.dnswl.org=127.[0..255].[0..255].[2..3]*-6
+
+# Spamassassin settings
+SPAMASSASSIN_NORMALIZE_CHARSET=1
+SPAMASSASSIN_REQUIRED_HITS=4.5
+SPAMASSASSIN_REPORT_SAFE=0
+SPAMASSASSIN_REWRITE_HEADER=Subject
+
+SPAMASSASSIN_BAYES_AUTO_LEARN=1
+SPAMASSASSIN_BAYES_AUTO_LEARN_THRESHOLD_SPAM=8.0
+SPAMASSASSIN_BAYES_AUTO_LEARN_THRESHOLD_NONSPAM=-0.001
+
+MILTER_SAFE_NETWORKS=127.0.0.1,10.0.0.0/8,10.10.10.0/24
+
+SPAM_SCORE_FREEMAIL_FORGED_REPLYTO=1.0
+SPAM_SCORE_BAYES_999=2.5
+
+# SRS configuration
+POSTSRSD_SECRET=eifaiseu2eeGooZada8azuo6chaiph
+POSTSRSD_DOMAIN=megacorp.icu
+
+# Spam learn configuration
+SPAMLEARN_SPAM_DIR=/var/lib/kopano/spamd/spam
+SPAMLEARN_HAM_DIR=/var/lib/kopano/spamd/ham
+
+# Imap authentication configuration
+SASLAUTHD_IMAP_SERVER=10.10.10.2/143
+
+# Mail domains configuration
+ALIAS_0=postmaster: infra@megacorp.icu
+
+MAIL_DOMAIN_1=megacorp.icu
+MAIL_DOMAIN_1_DKIM=1
+MAIL_DOMAIN_1_TRANSPORT=lmtp:10.10.10.2:2003
+MAIL_DOMAIN_1_BLACKHOLE=no-reply
+MAIL_DOMAIN_1_TYPE=relay
+MAIL_DOMAIN_1_LDAP_HOST=10.10.10.2:389
+MAIL_DOMAIN_1_LDAP_BIND_DN=uid=read,ou=systemusers,dc=megacorp,dc=icu
+MAIL_DOMAIN_1_LDAP_BIND_PASSWORD=bae1Theel4
+MAIL_DOMAIN_1_LDAP_VERSION=3
+MAIL_DOMAIN_1_LDAP_SEARCH_BASE=dc=megacorp,dc=icu
+MAIL_DOMAIN_1_LDAP_SCOPE=sub
+MAIL_DOMAIN_1_LDAP_ADDRESS_FILTER=(&(objectClass=kopano-user)(|(mail=%s)(kopanoAliases=%s)))
+MAIL_DOMAIN_1_LDAP_ADDRESS_RESULT=uid, mail, kopanoAliases
+MAIL_DOMAIN_1_LDAP_ALIAS_FILTER=(&(objectClass=kopano-user)(kopanoAliases=%s))
+MAIL_DOMAIN_1_LDAP_ALIAS_RESULT=mail
+

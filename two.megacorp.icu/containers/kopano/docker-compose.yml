@@ -1,0 +1,178 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    healthcheck:
+      test: mysqladmin ping --password="${DATABASE_ROOT_PASSWORD}"
+    command: --innodb_buffer_pool_size=1G --innodb_log_file_size=512M --innodb_log_buffer_size=512M --innodb_file_per_table --key_buffer_size=256M --max_allowed_packet=64M --thread_stack=256K --thread_cache_size=32 --max_connections=8192 --query_cache_limit=2M --query_cache_size=32M --max_connect_errors=2048 --innodb_buffer_pool_instances=4 --skip-name-resolve --skip-external-locking
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DATABASE_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DATABASE_NAME}
+      - MARIADB_USER=${DATABASE_USER}
+      - MARIADB_PASSWORD=${DATABASE_PASSWORD}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+
+  core:
+    image: kopano-core:latest
+    restart: always
+    healthcheck:
+      test: /usr/sbin/kopano-admin -l > /dev/null
+    depends_on:
+      mariadb
+    environment:
+      - KC_SERVER_mysql_host=mariadb
+      - KC_SERVER_mysql_database=${DATABASE_NAME}
+      - KC_SERVER_mysql_user=${DATABASE_USER}
+      - KC_SERVER_mysql_password=${DATABASE_PASSWORD}
+    env_file:
+      - kc_server.env
+      - kc_ldap.env
+      - kc_archiver.env
+    volumes:
+      - attachments:/var/lib/kopano/attachments/
+      - kopano-sockets:/var/run/kopano/
+
+  webapp:
+    image: kopano-webapp:latest
+    restart: always
+    depends_on:
+      core
+    env_file:
+      - kc_webapp.env
+    volumes:
+      - kopano-webapp-tmp:/var/lib/kopano-webapp/tmp
+      - kopano-sockets:/var/run/kopano/
+
+  webapp-frontend:
+    image: kopano-webapp-frontend:latest
+    restart: always
+    depends_on:
+      webapp
+    ports:
+      - "127.0.0.1:8001:80"
+    volumes:
+      - kopano-webapp-tmp:/var/lib/kopano-webapp/tmp
+      - kopano-sockets:/var/run/kopano/
+
+  search:
+    image: kopano-search:latest
+    restart: always
+    depends_on:
+      core
+    env_file:
+      - kc_search.env
+    volumes:
+      - kopano-sockets:/var/run/kopano/
+      - search-index:/var/lib/kopano/index/
+
+  spooler:
+    image: kopano-spooler:latest
+    restart: always
+    depends_on:
+      core
+    env_file:
+      - kc_spooler.env
+    volumes:
+      - kopano-sockets:/var/run/kopano/
+
+  dagent:
+    image: kopano-dagent:latest
+    restart: always
+    healthcheck:
+      test: /usr/lib/nagios/plugins/check_smtp -H 127.0.0.1 -p 2003 || exit 1
+    depends_on:
+      core
+    env_file:
+      - kc_dagent.env
+      - kc_archiver.env
+    ports:
+      - "10.10.10.2:2003:2003"
+    volumes:
+      - kopano-sockets:/var/run/kopano/
+
+  gateway:
+    image: kopano-gateway:latest
+    restart: always
+    healthcheck:
+      test: /usr/lib/nagios/plugins/check_imap -H 127.0.0.1 -p 143 || exit 1
+    environment:
+      - KC_GATEWAY_server_socket=http://core:236/kopano
+    depends_on:
+      core
+    env_file:
+      - kc_gateway.env
+    ports:
+      - "10.10.10.2:110:110"
+      - "10.10.10.2:143:143"
+
+  z-push:
+    image: kopano-z-push:latest
+    restart: always
+    depends_on:
+      core
+    environment:
+      - Z_PUSH_KOPANO_MAPI_SERVER="http://core:236/kopano"
+    env_file:
+      - kc_z-push.env
+    volumes:
+      - kopano-z-push-sockets:/var/run/kopano/
+      - kopano-z-push-state:/var/lib/z-push
+      - kopano-z-push-logs:/var/log/z-push
+
+  z-push-frontend:
+    image: kopano-z-push-frontend:latest
+    restart: always
+    depends_on:
+      z-push
+    ports:
+      - "127.0.0.1:8002:80"
+    volumes:
+      - kopano-z-push-sockets:/var/run/kopano/
+      - kopano-z-push-state:/var/lib/z-push
+
+  kdav:
+    image: kopano-kdav:latest
+    restart: always
+    depends_on:
+      core
+    environment:
+      - KC_KDAV_MAPI_SERVER="http://core:236/"
+    env_file:
+      - kc_kdav.env
+    volumes:
+      - kdav-sockets:/var/run/kopano/
+      - kopano-kdav-state:/var/lib/kopano/kdav/
+
+  kdav-frontend:
+    image: kopano-kdav-frontend:latest
+    restart: always
+    depends_on:
+      z-push
+    ports:
+      - "127.0.0.1:8003:80"
+    volumes:
+      - kdav-sockets:/var/run/kopano/
+      - kopano-kdav-state:/var/lib/kopano/kdav/
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    restart: always
+    ports:
+      - "127.0.0.1:4180:4180"
+    command: --http-address http://0.0.0.0:4180 --provider=oidc --oidc-issuer-url=https://sso.megacorp.icu/auth/realms/master --client-id=kopano --client-secret=i3KJvHyIWxoUBKbaQKyNixv5xnMy5Blv --redirect-url=https://mail.megacorp.icu/oauth2/callback --email-domain=megacorp.icu --cookie-secret=7clCGn--jLJb5cTmv6zvqi9jcTPNXWBCANLlc92mEu8= --insecure-oidc-allow-unverified-email --reverse-proxy --set-xauthrequest --set-authorization-header --skip-provider-button
+
+  spamd:
+    image: kopano-spamd:latest
+    restart: always
+    env_file:
+      - kc_spamd.env
+    volumes:
+      - kopano-sockets:/var/run/kopano/
+      - kopano-spam:/var/lib/kopano/spamd/
+
+volumes:
+  kopano-spam:
+    name: kopano-spam
+    external: true 
+

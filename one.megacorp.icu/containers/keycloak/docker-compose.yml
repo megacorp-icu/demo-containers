@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:12
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/pgdata
+
+  app:
+    image: docker.io/jboss/keycloak:latest
+    restart: always
+    command: -b 0.0.0.0 -Dkeycloak.profile.feature.scripts=enabled -Dkeycloak.profile.feature.upload_scripts=enabled
+    environment:
+      - DB_VENDOR=postgres
+      - DB_ADDR=db
+      - PROXY_ADDRESS_FORWARDING=true
+      - DB_DATABASE=${POSTGRES_USER}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - KEYCLOAK_USER=${KEYCLOAK_USER}
+      - KEYCLOAK_PASSWORD=${KEYCLOAK_PASSWORD}
+    ports:
+      - "127.0.0.1:8001:8080"
+

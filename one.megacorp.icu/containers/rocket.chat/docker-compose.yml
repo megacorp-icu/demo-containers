@@ -1,0 +1,32 @@
+volumes:
+  mongodb_data: { driver: local }
+
+services:
+  mongodb:
+    image: mongo:4.4
+    restart: on-failure
+    command: --oplogSize 128 --replSet rs0
+    volumes:
+      - mongodb_data:/data/db
+
+  rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:3.18.7
+    restart: on-failure
+    environment:
+      ROOT_URL: ${ROOT_URL}
+      MONGO_URL: ${MONGO_URL}
+      MONGO_OPLOG_URL: ${MONGO_OPLOG_URL}
+      PORT: ${PORT:-3000}
+      DEPLOY_METHOD: docker
+      DEPLOY_PLATFORM: ${DEPLOY_PLATFORM}
+    #env_file:
+    #  - environment
+    depends_on:
+      - mongodb
+    expose:
+      - ${PORT:-3000}
+    volumes:
+      - rocket_data:/app/uploads
+    ports:
+      - "${BIND_IP:-0.0.0.0}:${HOST_PORT:-3000}:${PORT:-3000}"
+

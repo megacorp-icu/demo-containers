@@ -1,0 +1,46 @@
+Show_Setup_Wizard=Completed
+Site_Name=MEGACORP.ICU private
+Server_Type=Private Team
+Allow_Marketing_Emails=False
+Register_Server=False
+
+LDAP_Enable=True
+LDAP_Login_Fallback=False
+LDAP_Find_User_After_Login=True
+LDAP_Host=10.10.10.1
+LDAP_Port=389
+LDAP_Reconnect=True
+LDAP_Reject_Unauthorized=True
+LDAP_BaseDN=ou=users,dc=megacorp,dc=icu
+LDAP_Authentication=True
+LDAP_Authentication_UserDN=uid=read,ou=systemusers,dc=megacorp,dc=icu
+LDAP_Authentication_Password=bae1Theel4
+LDAP_Username_Field=uid
+LDAP_Unique_Identifier_Field=entryUUID
+LDAP_Default_Domain=megacorp.icu
+LDAP_Merge_Existing_Users=True
+LDAP_Sync_User_Data=True
+LDAP_Sync_User_Avatar=True
+
+LDAP_User_Search_Filter=(&(objectclass=inetOrgPerson)(memberOf=cn=Rocket.Chat Users,ou=rocket.chat,ou=applications,ou=groups,dc=megacorp,dc=icu))
+LDAP_User_Search_Scope=sub
+LDAP_User_Search_Field=uid
+LDAP_User_Search_Page_Size=250
+LDAP_User_Search_Page_Limit=1000
+
+LDAP_Background_Sync=True
+LDAP_Background_Sync_Interval=every 1 minute
+LDAP_Background_Sync_Import_New_Users=True
+LDAP_Background_Sync_Keep_Existant_Users_Updated=True
+
+LDAP_User_Data_Field_Map={"cn":"name", "mail":"email"}
+LDAP_Sync_User_Data_Groups=True
+LDAP_Sync_User_Data_Groups_AutoRemove=True
+OVERWRITE_SETTING_LDAP_Sync_User_Data_Groups_Filter=(&(cn=#{groupName})(member=uid=#{username},ou=internal,ou=users,dc=megacorp,dc=icu))
+LDAP_Sync_User_Data_Groups_BaseDN=ou=groups,dc=megacorp,dc=icue
+LDAP_Sync_User_Data_GroupsMap={"Rocket.Chat Administrators": "admin"}
+LDAP_Sync_User_Data_Groups_AutoChannels=True
+LDAP_Sync_User_Data_Groups_AutoChannel_Admin=rocket.cat
+OVERWRITE_SETTING_LDAP_Sync_User_Data_Groups_AutoChannelsMap={"Human Resources Team": "Human Resources"}
+LDAP_Sync_User_Data_Groups_Enforce_AutoChannels=True
+

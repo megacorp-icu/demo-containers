@@ -1,0 +1,25 @@
+services:
+  slapd:
+    hostname: three.megacorp.icu
+    build:
+      context: openldap-container
+    ports:
+      - 10.10.10.3:389:389
+      - 636:636
+    volumes:
+      - /etc/letsencrypt/live/megacorp.icu/cert.pem:/data/ssl/cert.pem
+      - /etc/letsencrypt/live/megacorp.icu/chain.pem:/data/ssl/chain.pem
+      - /etc/letsencrypt/live/megacorp.icu/fullchain.pem:/data/ssl/fullchain.pem
+      - /etc/letsencrypt/live/megacorp.icu/privkey.pem:/data/ssl/privkey.pem
+      - ldap-data:/data
+    environment:
+      - SLAPD_LOGLEVEL=256
+      - SLAPD_LISTEN_LDAPS=1
+      - INITIAL_ROOTPW=ohjasios9G
+      - INITIAL_SUFFIX_1=dc=megacorp,dc=icu
+      - INITIAL_SUFFIX_1_ORGANIZATION=Megacorp.icu - Totally not evil
+      - INITIAL_SUFFIX_1_USE_MEMBEROF=1 
+      - INITIAL_SUFFIX_1_ROOTPW=Shoh2yiGhu
+      - REPLICA_001_HOST=one.megacorp.icu
+      - REPLICA_002_HOST=two.megacorp.icu
+      - REPLICA_003_HOST=three.megacorp.icu

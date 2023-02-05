@@ -1,0 +1,5 @@
+[z-push]
+name=Z-Push noarch Enterprise Linux 8 - $basearch
+baseurl=https://download.kopano.io/zhub/z-push:/final/RHEL_8
+enabled=0
+gpgcheck=0

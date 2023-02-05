@@ -1,0 +1,175 @@
+services:
+  postfix:
+    build:
+      context: postfix
+    restart: unless-stopped
+    healthcheck:
+      test: /usr/lib64/nagios/plugins/check_smtp -S -H 127.0.0.1 -p 25 || exit 1
+    depends_on:
+      - opendkim
+      - spamassassin-milter
+      - postsrsd
+      - saslauthd
+    ports:
+      - "25:25"
+      - "587:587"
+    environment:
+      - POSTFIX_MAIN_maillog_file=/dev/stdout
+      - POSTFIX_MAIN_inet_interfaces=all
+      - POSTFIX_MAIN_smtpd_recipient_restrictions=permit_mynetworks, reject_authenticated_sender_login_mismatch, permit_sasl_authenticated, reject_unauth_destination
+      - POSTFIX_MAIN_smtpd_tls_auth_only=yes
+      - POSTFIX_MAIN_milter_default_action=accept
+      - POSTFIX_MAIN_smtpd_milters=unix:sockets/spamassassin-milter.sock, unix:sockets/opendkim.sock
+      - POSTFIX_MAIN_non_smtpd_milters=unix:sockets/opendkim.sock
+      - POSTFIX_MAIN_milter_protocol=6
+      - POSTFIX_MAIN_milter_connect_macros=i j {daemon_name} {daemon_addr} v _
+      - POSTFIX_MAIN_postscreen_access_list=permit_mynetworks
+      - POSTFIX_MAIN_postscreen_blacklist_action=drop
+      - POSTFIX_MAIN_postscreen_greet_action=enforce
+      - POSTFIX_MAIN_smtpd_tls_cert_file=/certificates/fullchain.pem
+      - POSTFIX_MAIN_smtpd_tls_key_file=/certificates/privkey.pem
+      - POSTFIX_MAIN_smtpd_tls_CAfile=/certificates/chain.pem
+      - POSTFIX_MAIN_smtpd_use_tls=yes
+      - POSTFIX_MAIN_smtpd_tls_session_cache_database=btree:$${data_directory}/smtpd_scache
+      - POSTFIX_MAIN_smtp_tls_session_cache_database=btree:$${data_directory}/smtp_scache
+      - POSTFIX_MAIN_mailbox_size_limit=524288000
+      - POSTFIX_MAIN_sender_canonical_maps=tcp:postsrsd:10001
+      - POSTFIX_MAIN_sender_canonical_classes=envelope_sender
+      - POSTFIX_MAIN_recipient_canonical_maps=tcp:postsrsd:10002
+      - POSTFIX_MAIN_recipient_canonical_classes=envelope_recipient,header_recipient
+      - POSTFIX_MASTER_smtp_inet=smtp inet n - n - 1 postscreen
+      - POSTFIX_MASTER_smtpd_pass=smtpd pass - - n - - smtpd 
+      - POSTFIX_MASTER_dnsblog_unix=dnsblog unix - - n - 0 dnsblog
+      - POSTFIX_MASTER_tlsproxy_unix=tlsproxy unix - - n - 0 tlsproxy
+    env_file:
+      - environment
+    volumes:
+      - spool:/var/spool/postfix
+      - sockets:/var/spool/postfix/sockets
+      - certificates:/certificates
+      - saslauthd_sockets:/run/saslauthd
+      - /etc/letsencrypt/live/megacorp.icu/cert.pem:/certificates/cert.pem
+      - /etc/letsencrypt/live/megacorp.icu/chain.pem:/certificates/chain.pem
+      - /etc/letsencrypt/live/megacorp.icu/fullchain.pem:/certificates/fullchain.pem
+      - /etc/letsencrypt/live/megacorp.icu/privkey.pem:/certificates/privkey.pem
+
+  opendkim:
+    build:
+      context: opendkim
+    restart: unless-stopped
+    healthcheck:
+      test: socat /dev/null unix-client:/var/spool/postfix/sockets/opendkim.sock
+    environment:
+      - OPENDKIM_PidFile=/var/run/opendkim/opendkim.pid
+      - OPENDKIM_Mode=sv
+      - OPENDKIM_Syslog=yes
+      - OPENDKIM_SyslogSuccess=yes
+      - OPENDKIM_LogWhy=yes
+      - OPENDKIM_UserID=postfix:postfix
+      - OPENDKIM_Socket=local:/var/spool/postfix/sockets/opendkim.sock
+      - OPENDKIM_Umask=000
+      - OPENDKIM_SendReports=no
+      - OPENDKIM_SoftwareHeader=yes
+      - OPENDKIM_Canonicalization=relaxed/relaxed
+      - OPENDKIM_MinimumKeyBits=1024
+      - OPENDKIM_KeyTable=/etc/opendkim/KeyTable
+      - OPENDKIM_SigningTable=refile:/etc/opendkim/SigningTable
+      - OPENDKIM_ExternalIgnoreList=refile:/etc/opendkim/TrustedHosts
+      - OPENDKIM_InternalHosts=refile:/etc/opendkim/TrustedHosts
+      - OPENDKIM_OversignHeaders=From
+      - OPENDKIM_Background=no
+      - OPENDKIM_On-Default=accept
+      - OPENDKIM_On-Security=accept
+      - OPENDKIM_On-InternalError=accept
+      - OPENDKIM_On-DNSError=accept
+      - OPENDKIM_MaximumHeaders=0
+      - OPENDKIM_RequiredHeaders=no
+    env_file:
+      - environment
+    volumes:
+      - sockets:/var/spool/postfix/sockets
+      - dkim-keys:/etc/opendkim
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    volumes:
+      - redis_data:/data
+
+  spamassassin:
+    build:
+      context: spamassassin
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: echo PING SPAMC/1.2 | socat STDIO unix-client:/var/spool/postfix/sockets/spamassassin.sock
+    volumes:
+      - sockets:/var/spool/postfix/sockets
+      - spamassassin:/var/lib/mail/spamassassin
+    command: spamd
+    environment:
+      - SPAMASSASSIN_BAYES_STORE_MODULE=Mail::SpamAssassin::BayesStore::Redis
+      - SPAMASSASSIN_BAYES_SQL_DSN=server=redis:6379
+      - SPAMASSASSIN_BAYES_TOKEN_TTL=21d
+      - SPAMASSASSIN_BAYES_SEEN_TTL=8d
+      - SPAMASSASSIN_BAYES_AUTO_EXPIRE=1
+      - SPAMASSASSIN_USE_BAYES=1
+
+    env_file:
+      - environment
+
+  spamassassin-inotify-spamlearn:
+    build:
+      context: spamassassin
+    restart: unless-stopped
+    depends_on:
+      - spamassassin
+    volumes:
+      - sockets:/var/spool/postfix/sockets
+      - spamassassin:/var/lib/mail/spamassassin
+      - kopano-spam:/var/lib/kopano/spamd/
+    command: inotify-spamlearn
+    env_file:
+      - environment
+
+  spamassassin-milter:
+    build:
+      context: spamassassin
+    restart: unless-stopped
+    depends_on:
+      - spamassassin
+    healthcheck:
+      test: socat /dev/null unix-client:/var/spool/postfix/sockets/spamassassin-milter.sock
+    depends_on:
+      - spamassassin
+    volumes:
+      - sockets:/var/spool/postfix/sockets
+    command: milter
+    env_file:
+      - environment
+
+  postsrsd:
+    build:
+      context: postsrsd
+    restart: unless-stopped
+    healthcheck:
+      test: socat /dev/null tcp:localhost:10001
+    env_file: environment
+
+  saslauthd:
+    build:
+      context: saslauthd
+    restart: unless-stopped
+    healthcheck:
+      test: socat /dev/null unix-client:/run/saslauthd/mux
+    env_file: environment
+    volumes:
+      - saslauthd_sockets:/run/saslauthd
+
+volumes:
+  kopano-spam:
+    name: kopano-spam
+    external: true

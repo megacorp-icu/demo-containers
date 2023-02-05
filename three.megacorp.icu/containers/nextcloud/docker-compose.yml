@@ -1,0 +1,40 @@
+version: '2'
+
+services:
+  redis:
+    image: redis
+    restart: always
+    command: --requirepass ${REDIS_HOST_PASSWORD}
+
+  db:
+    image: mariadb
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --key_buffer_size=128M --innodb_buffer_pool_size=1G --innodb_log_file_size=250M --innodb_log_buffer_size=32M --innodb_file_per_table --skip-innodb-read-only-compressed
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MARIADB_PASSWORD=${MYSQL_PASSWORD}
+      - MARIADB_DATABASE=nextcloud
+      - MARIADB_USER=nextcloud
+
+  app:
+    image: nextcloud:25
+    restart: always
+    ports:
+      - 127.0.0.1:8001:80
+    volumes:
+      - nextcloud:/var/www/html
+      - files:${NEXTCLOUD_DATA_DIR}
+    environment:
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_HOST=${MYSQL_HOST}
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
+      - NEXTCLOUD_DATA_DIR=${NEXTCLOUD_DATA_DIR}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
+

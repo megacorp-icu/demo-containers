@@ -1,0 +1,6 @@
+[kopano]
+name=Kopano
+baseurl=/root/repo
+gpgcheck=0
+enabled=0
+countme=1
